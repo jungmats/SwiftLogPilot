@@ -275,3 +275,39 @@ func fileExists(path: URL) -> Bool {
     // Clean up the test directory.
     try? FileManager.default.removeItem(at: testDirectory)
 }
+
+@Test func testZipTwice() async throws {
+    let logFileName = "ziptwice_test"
+    let targetPath = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!.appendingPathComponent("\(logFileName).log")
+    
+    try cleanUp(startingWith: logFileName, for: targetPath)
+    
+    let pilot = FileLogger(logFileName: logFileName, maxFileSize: 7000, debugMode: true)
+    for i in 0..<15 {
+        //500+ per loop
+        pilot.log("\(i)-1-01234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890")
+        pilot.log("\(i)-2-01234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890")
+        pilot.log("\(i)-3-01234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890")
+        pilot.log("\(i)-4-01234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890")
+        pilot.log("\(i)-5-01234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890")
+    }
+    let url = try pilot.createLogArchive()
+    print(url!.description)
+    #expect(url != nil)
+    let zipTarget = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!.appendingPathComponent("\(logFileName).zip")
+    #expect(fileExists(path: zipTarget) == true)
+    for i in 0..<15 {
+        //500+ per loop
+        pilot.log("\(i)-1-01234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890")
+        pilot.log("\(i)-2-01234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890")
+        pilot.log("\(i)-3-01234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890")
+        pilot.log("\(i)-4-01234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890")
+        pilot.log("\(i)-5-01234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890")
+    }
+    let url2 = try pilot.createLogArchive()
+    print(url2!.description)
+    #expect(url2 != nil)
+    let zipTarget2 = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!.appendingPathComponent("\(logFileName).zip")
+    #expect(fileExists(path: zipTarget2) == true)
+    
+}

@@ -61,16 +61,27 @@ public class FileLogger {
     
     // takes all the logs with the respective log-name (including the current one and the archives) and zips them together
     public func createLogArchive() throws -> URL? {
+        //determine name of archive
+        let archiveUrl = targetPath.deletingLastPathComponent()
+            .appendingPathComponent("\(self.logFileName).zip")
+
+        // Remove any existing zip file with the same name.
+        if FileManager.default.fileExists(atPath: archiveUrl.path) {
+            try FileManager.default.removeItem(at: archiveUrl)
+            if debugMode {
+               print("LogPilot.Removed existing zip file at \(archiveUrl.path)")
+            }
+        }
+        
+        //identify all logs and filter out the ones with the right name
         let allLogs = (try? FileManager.default.contentsOfDirectory(at: targetPath.deletingLastPathComponent(), includingPropertiesForKeys: nil)) ?? []
         let archiveLogs = allLogs.filter { $0.lastPathComponent.contains(self.logFileName) }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
         if debugMode {
             print("LogPilot.\(archiveLogs.count) archivedLogs \(archiveLogs)")
         }
-
-        let archiveUrl = targetPath.deletingLastPathComponent()
-            .appendingPathComponent("\(self.logFileName).zip")
         
+        //put all together
         do {
             let archive = try Archive(url: archiveUrl, accessMode: .create)
             for fileURL in archiveLogs {

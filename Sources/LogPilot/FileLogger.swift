@@ -1,7 +1,7 @@
 import Foundation
 
 // A class responsible for logging messages to a file, with support for log rotation and archiving.
-class FileLogger {
+public class FileLogger {
     // Name of the log file.
     let logFileName: String
     // Maximum size (in bytes) of the log file before rotation occurs.

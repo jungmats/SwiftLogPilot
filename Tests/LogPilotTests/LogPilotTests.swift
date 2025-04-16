@@ -1,5 +1,7 @@
 import Testing
 import Foundation
+import ZIPFoundation
+
 @testable import LogPilot
 
 func numberOfFiles(startingWith name: String, for targetPath: URL) throws -> Int {
@@ -20,6 +22,11 @@ func cleanUp(startingWith name: String, for targetPath: URL) throws {
     }
 }
 
+func fileExists(path: URL) -> Bool {
+    print("check if \(path.description) exists")
+    return FileManager.default.fileExists(atPath: path.path)
+}
+
 @Test func testInitialization() async throws {
     let pilot = FileLogger(logFileName: "hubertus", debugMode: true)
     // Write your test here and use APIs like `#expect(...)` to check expected conditions.
@@ -28,7 +35,6 @@ func cleanUp(startingWith name: String, for targetPath: URL) throws {
 }
     
 @Test func testRotation() async throws {
-    print ("rotation start ------------------------------------")
     let logFileName = "log_rotation_test"
     let targetPath = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!.appendingPathComponent("\(logFileName).log")
     
@@ -45,7 +51,6 @@ func cleanUp(startingWith name: String, for targetPath: URL) throws {
     }
     pilot.rotateIfNeeded()
     let nff = try numberOfFiles(startingWith: logFileName, for: pilot.targetPath)
-    print ("rotation end with nff=\(nff) ------------------------------------")
     #expect(nff == 2)
 }
 
@@ -217,4 +222,56 @@ func cleanUp(startingWith name: String, for targetPath: URL) throws {
     // Verify that the files are sorted correctly.
     let sortedLogs = filteredLogs.sorted { $0.lastPathComponent < $1.lastPathComponent }
     #expect(sortedLogs.map { $0.lastPathComponent } == matchingFiles.map { $0.lastPathComponent }.sorted())
+}
+
+@Test func testZipping() async throws {
+    let logFileName = "log_zipper_test"
+    let targetPath = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!.appendingPathComponent("\(logFileName).log")
+    
+    try cleanUp(startingWith: logFileName, for: targetPath)
+    
+    let pilot = FileLogger(logFileName: logFileName, maxFileSize: 7000, debugMode: true)
+    for i in 0..<15 {
+        //500+ per loop
+        pilot.log("\(i)-1-01234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890")
+        pilot.log("\(i)-2-01234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890")
+        pilot.log("\(i)-3-01234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890")
+        pilot.log("\(i)-4-01234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890")
+        pilot.log("\(i)-5-01234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890")
+    }
+    let url = try pilot.createLogArchive()
+    print(url!.description)
+    #expect(url != nil)
+    
+    let zipTarget = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!.appendingPathComponent("\(logFileName).zip")
+    
+    #expect(fileExists(path: zipTarget) == true)
+}
+
+@Test func testCreateLogArchiveFailure() async throws {
+    let logFileName = "log_archive_failure_test"
+    let testDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("LogPilotTestFailure")
+    let targetPath = testDirectory.appendingPathComponent("\(logFileName).log")
+    
+    // Ensure the test directory exists.
+    try? FileManager.default.createDirectory(at: testDirectory, withIntermediateDirectories: true)
+    try cleanUp(startingWith: logFileName, for: targetPath)
+    
+    let pilot = FileLogger(targetPath: testDirectory, logFileName: logFileName, debugMode: true)
+    pilot.log("This is a test log entry.")
+    
+    // Make the test directory read-only to simulate a failure.
+    try FileManager.default.setAttributes([.posixPermissions: 0o444], ofItemAtPath: testDirectory.path) // Read-only permissions.
+    
+    // Attempt to create the log archive.
+    let archiveURL = try pilot.createLogArchive()
+    
+    // Restore write permissions to clean up.
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: testDirectory.path)
+    
+    // Verify that the archive creation failed.
+    #expect(archiveURL == nil)
+    
+    // Clean up the test directory.
+    try? FileManager.default.removeItem(at: testDirectory)
 }

@@ -1,4 +1,6 @@
 import Foundation
+import Compression
+import ZIPFoundation
 
 // A class responsible for logging messages to a file, with support for log rotation and archiving.
 public class FileLogger {
@@ -55,6 +57,31 @@ public class FileLogger {
         } catch {
             print("LogPilot.Log error: \(error)")
         }
+    }
+    
+    // takes all the logs with the respective log-name (including the current one and the archives) and zips them together
+    public func createLogArchive() throws -> URL? {
+        let allLogs = (try? FileManager.default.contentsOfDirectory(at: targetPath.deletingLastPathComponent(), includingPropertiesForKeys: nil)) ?? []
+        let archiveLogs = allLogs.filter { $0.lastPathComponent.contains(self.logFileName) }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        if debugMode {
+            print("LogPilot.\(archiveLogs.count) archivedLogs \(archiveLogs)")
+        }
+
+        let archiveUrl = targetPath.deletingLastPathComponent()
+            .appendingPathComponent("\(self.logFileName).zip")
+        
+        do {
+            let archive = try Archive(url: archiveUrl, accessMode: .create)
+            for fileURL in archiveLogs {
+                let fileName = fileURL.lastPathComponent
+                try archive.addEntry(with: fileName, fileURL: fileURL)
+            }
+            return archive.url
+        } catch {
+            print("Failed to create archive: \(error)")
+        }
+        return nil
     }
     
     // Rotates the log file if its size exceeds the maximum allowed size.

@@ -35,7 +35,7 @@ public class FileLogger {
     }
     
     // Logs a message to the current log file, appending a timestamp to each entry.
-    func log(_ message: String) {
+    public func log(_ message: String) {
         let timestamp = ISO8601DateFormatter().string(from: Date())
         let logEntry = "[\(timestamp)] \(message)\n"
         do {
